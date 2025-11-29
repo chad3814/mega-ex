@@ -91,7 +91,7 @@ export default function CollectionPage({ params }: CollectionPageProps) {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-8 -mt-32 relative z-10">
+      <div className={`max-w-7xl mx-auto px-8 ${collection.backdropPath ? '-mt-32 relative z-10' : 'mt-8'}`}>
         <div className="flex gap-8 mb-12">
           {collection.posterPath && (
             <div className="flex-shrink-0">
