@@ -7,6 +7,10 @@ import { useEffect, useState } from 'react';
 import { Person, Role } from '@/types/person';
 import { Movie } from '@/types/movie';
 import { numberToDate } from '@/lib/utils/date';
+import Breadcrumb from '@/components/Breadcrumb';
+import { useMediaCache } from '@/contexts/MediaCacheContext';
+import { useMega } from '@/contexts/MegaContext';
+import { getAllFilesRecursive } from '@/lib/utils/mega-navigation';
 
 const TMDB_IMAGE_BASE = process.env.NEXT_PUBLIC_TMDB_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p';
 
@@ -18,9 +22,12 @@ interface PersonWithMovies extends Person {
   movies: { movie: Movie; role: Role; character: string | null }[];
 }
 
-async function getPersonData(id: string): Promise<PersonWithMovies | null> {
+async function getPersonData(id: string, availableMovieIds: number[]): Promise<PersonWithMovies | null> {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
   const response = await fetch(`${baseUrl}/api/tmdb/person/${id}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ availableMovieIds }),
     cache: 'no-store',
   });
 
@@ -54,21 +61,39 @@ export default function PersonPage({ params }: PersonPageProps) {
   const [id, setId] = useState<string>('');
   const [person, setPerson] = useState<PersonWithMovies | null>(null);
   const [fetched, setFetched] = useState(false);
+  const { rootFile } = useMega();
 
   useEffect(() => {
     params.then(p => setId(p.id));
   }, [params]);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || !rootFile) return;
 
     async function fetchPerson() {
-      const personData = await getPersonData(id);
+      const availableMovieIds: number[] = [];
+
+      // Get all movies from mega share and build list of tmdbIds
+      if (rootFile && rootFile.directory) {
+        const allFiles = getAllFilesRecursive(rootFile);
+
+        for (const file of allFiles) {
+          if (file.mediaType === 'movie' || (file.mediaType === 'unknown' && !file.episodeInfo)) {
+            const key = `movie:${file.cleanTitle}:${file.year || 'unknown'}`;
+            const cached = await import('@/lib/utils/indexeddb').then(m => m.getCachedResult(key));
+            if (cached && cached.tmdbId) {
+              availableMovieIds.push(cached.tmdbId);
+            }
+          }
+        }
+      }
+
+      const personData = await getPersonData(id, availableMovieIds);
       setPerson(personData);
       setFetched(true);
     }
     fetchPerson();
-  }, [id]);
+  }, [id, rootFile]);
 
   if (!fetched) {
     return null;
@@ -85,6 +110,12 @@ export default function PersonPage({ params }: PersonPageProps) {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <div className="max-w-7xl mx-auto px-8 py-12">
+        <Breadcrumb
+          items={[
+            { label: 'People', href: '/people' },
+            { label: person.name, href: `/person/${person.id}` },
+          ]}
+        />
         <div className="flex gap-8 mb-12">
           {person.profilePath && (
             <div className="flex-shrink-0">
@@ -141,7 +172,7 @@ export default function PersonPage({ params }: PersonPageProps) {
               Directed ({directedMovies.length})
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-              {directedMovies.map((movie: { tmdbId: number; title: string; posterPath?: string; releaseDate?: string }) => (
+              {directedMovies.map((movie) => (
                 <Link
                   key={movie.tmdbId}
                   href={`/movie/${movie.tmdbId}`}
@@ -184,7 +215,7 @@ export default function PersonPage({ params }: PersonPageProps) {
               Acted In ({actedMovies.length})
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-              {actedMovies.map((movie: { tmdbId: number; title: string; posterPath?: string; releaseDate?: string }) => (
+              {actedMovies.map((movie) => (
                 <Link
                   key={movie.tmdbId}
                   href={`/movie/${movie.tmdbId}`}

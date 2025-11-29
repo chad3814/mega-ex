@@ -1,4 +1,4 @@
-const EPISODE_PATTERN = /[Ss]\d+[Ee]\d+/;
+const EPISODE_PATTERN = /[Ss](\d+)[Ee](\d+)/;
 const DATE_PATTERN = /\d{4}-\d{2}-\d{2}/;
 const MOVIE_KEYWORDS = ['movie', 'film', 'flick', 'flix'];
 const TV_KEYWORDS = ['show', 'series'];
@@ -10,6 +10,8 @@ export interface ParsedFileInfo {
   mediaType: 'movie' | 'tv' | 'unknown';
   cleanTitle: string;
   episodeInfo?: string;
+  seasonNumber?: number;
+  episodeNumber?: number;
 }
 
 export function parseFileInfo(filename: string, pathname: string): ParsedFileInfo {
@@ -32,6 +34,8 @@ export function parseFileInfo(filename: string, pathname: string): ParsedFileInf
       mediaType: 'tv',
       cleanTitle,
       episodeInfo: episodeMatch[0],
+      seasonNumber: parseInt(episodeMatch[1]),
+      episodeNumber: parseInt(episodeMatch[2]),
     };
   }
 

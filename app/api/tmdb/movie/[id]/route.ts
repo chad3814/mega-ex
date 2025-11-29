@@ -24,6 +24,7 @@ export async function GET(
         { status: 404 }
       );
     }
+
     return NextResponse.json(dateToNumber(movie));
   } catch (error) {
     console.error('Movie fetch error:', error);

@@ -27,18 +27,8 @@ export async function processMegaUrl(url: string, path?: string): Promise<MegaIt
       });
     });
 
-    let targetDirectory = file;
-
-    // If a path is provided, navigate to that subdirectory
-    if (path) {
-      const navigated = file.navigate(path);
-      if (navigated) {
-        targetDirectory = navigated;
-      }
-    }
-
-    if (targetDirectory.directory) {
-      return processDirectory(targetDirectory, url, path || '');
+    if (file.directory) {
+      return processDirectory(file, url, path || '');
     } else {
       const items: MegaItem[] = [];
       if (file.name && file.name.toLowerCase().endsWith('.mp4')) {

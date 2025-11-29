@@ -12,14 +12,14 @@ export interface Person extends DateContainer {
 }
 
 export enum Role {
-    actor,
-    director,
-    writer,
-    producer,
-    composer,
-    editor,
-    cinematographer,
-};
+    actor = 'actor',
+    director = 'director',
+    writer = 'writer',
+    producer = 'producer',
+    composer = 'composer',
+    editor = 'editor',
+    cinematographer = 'cinematographer',
+}
 
 export interface PersonRole extends DateContainer {
     id: number;

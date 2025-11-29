@@ -90,3 +90,64 @@ export interface TMDBCollectionPart {
   poster_path: string | null;
   release_date: string;
 }
+
+export interface TMDBShow {
+  id: number;
+  name: string;
+  overview: string;
+  first_air_date: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  vote_average: number;
+  vote_count: number;
+  genres: TMDBGenre[];
+  seasons: TMDBSeason[];
+}
+
+export interface TMDBSeason {
+  id: number;
+  season_number: number;
+  name: string;
+  overview: string;
+  poster_path: string | null;
+  air_date: string;
+  episode_count: number;
+}
+
+export interface TMDBSeasonDetails {
+  id: number;
+  season_number: number;
+  name: string;
+  overview: string;
+  poster_path: string | null;
+  air_date: string;
+  episodes: TMDBEpisode[];
+}
+
+export interface TMDBEpisode {
+  id: number;
+  episode_number: number;
+  name: string;
+  overview: string;
+  still_path: string | null;
+  air_date: string;
+  runtime: number;
+  vote_average: number;
+  crew: TMDBCrew[];
+  guest_stars: TMDBCast[];
+}
+
+export interface TMDBShowSearchResult {
+  page: number;
+  results: TMDBShowSearchItem[];
+  total_pages: number;
+  total_results: number;
+}
+
+export interface TMDBShowSearchItem {
+  id: number;
+  name: string;
+  first_air_date: string;
+  poster_path: string | null;
+  overview: string;
+}

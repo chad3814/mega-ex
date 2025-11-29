@@ -17,14 +17,12 @@ export async function cacheMovie(tmdbMovie: TMDBMovie): Promise<Movie> {
 
   const cachedGenres = await Promise.all(
     tmdbMovie.genres.map(async (genre) => {
-      const existing = await prisma.genre.findUnique({
+      return prisma.genre.upsert({
         where: { tmdbId: genre.id },
-      });
-
-      if (existing) return existing;
-
-      return prisma.genre.create({
-        data: {
+        update: {
+          name: genre.name,
+        },
+        create: {
           tmdbId: genre.id,
           name: genre.name,
         },
@@ -87,7 +85,11 @@ export async function cacheMovie(tmdbMovie: TMDBMovie): Promise<Movie> {
     },
     include: {
       genres: true,
-      people: true,
+      people: {
+        include: {
+          person: true,
+        },
+      },
       collections: true,
     },
   });
@@ -152,16 +154,27 @@ export async function cacheMovie(tmdbMovie: TMDBMovie): Promise<Movie> {
 }
 
 export async function cachePerson(tmdbPersonId: number): Promise<Person> {
+  // First check if it exists
   const existing = await prisma.person.findUnique({
     where: { tmdbId: tmdbPersonId },
   });
 
   if (existing) return existing;
 
+  // Fetch from TMDB
   const tmdbPerson = await getPersonDetails(tmdbPersonId);
 
-  return prisma.person.create({
-    data: {
+  // Use upsert to handle race conditions
+  return prisma.person.upsert({
+    where: { tmdbId: tmdbPerson.id },
+    update: {
+      name: tmdbPerson.name,
+      biography: tmdbPerson.biography,
+      birthday: tmdbPerson.birthday,
+      deathday: tmdbPerson.deathday,
+      profilePath: tmdbPerson.profile_path,
+    },
+    create: {
       tmdbId: tmdbPerson.id,
       name: tmdbPerson.name,
       biography: tmdbPerson.biography,
@@ -173,16 +186,26 @@ export async function cachePerson(tmdbPersonId: number): Promise<Person> {
 }
 
 export async function cacheCollection(tmdbCollectionId: number): Promise<Collection> {
+  // First check if it exists
   const existing = await prisma.collection.findUnique({
     where: { tmdbId: tmdbCollectionId },
   });
 
   if (existing) return existing;
 
+  // Fetch from TMDB
   const tmdbCollection = await getCollectionDetails(tmdbCollectionId);
 
-  return prisma.collection.create({
-    data: {
+  // Use upsert to handle race conditions
+  return prisma.collection.upsert({
+    where: { tmdbId: tmdbCollection.id },
+    update: {
+      name: tmdbCollection.name,
+      overview: tmdbCollection.overview,
+      posterPath: tmdbCollection.poster_path,
+      backdropPath: tmdbCollection.backdrop_path,
+    },
+    create: {
       tmdbId: tmdbCollection.id,
       name: tmdbCollection.name,
       overview: tmdbCollection.overview,
@@ -225,62 +248,81 @@ export async function getOrFetchMovie(tmdbId: number): Promise<Movie> {
 }
 
 export async function getOrFetchPerson(tmdbId: number): Promise<Person & { movies: { movie: Movie; role: Role; character: string | null }[] }> {
-  const cached = await prisma.person.findUnique({
-    where: { tmdbId },
-    include: {
-      movies: {
-        include: {
-          movie: {
-            include: {
-              genres: true,
-              collections: true,
-            },
-          },
-        },
-      },
+  // Fetch person details from TMDB to get complete filmography
+  const tmdbPerson = await getPersonDetails(tmdbId);
+
+  // Cache person in database
+  const person = await prisma.person.upsert({
+    where: { tmdbId: tmdbPerson.id },
+    update: {
+      name: tmdbPerson.name,
+      biography: tmdbPerson.biography,
+      birthday: tmdbPerson.birthday,
+      deathday: tmdbPerson.deathday,
+      profilePath: tmdbPerson.profile_path,
+    },
+    create: {
+      tmdbId: tmdbPerson.id,
+      name: tmdbPerson.name,
+      biography: tmdbPerson.biography,
+      birthday: tmdbPerson.birthday,
+      deathday: tmdbPerson.deathday,
+      profilePath: tmdbPerson.profile_path,
     },
   });
 
-  if (cached) {
-    return {
-      ...cached,
-      movies: cached.movies.map((pm) => ({
-        movie: { ...pm.movie, people: [] } as Movie,
-        role: pm.role as unknown as Role,
-        character: pm.character,
-      })),
-    };
-  }
+  // Convert TMDB movie credits to our Movie format
+  const actedMovies = tmdbPerson.movie_credits.cast.map((credit) => ({
+    movie: {
+      id: 0,
+      tmdbId: credit.id,
+      title: credit.title,
+      overview: null,
+      releaseDate: credit.release_date,
+      posterPath: credit.poster_path,
+      backdropPath: null,
+      voteAverage: null,
+      voteCount: null,
+      runtime: null,
+      tagline: null,
+      genres: [],
+      people: [],
+      collections: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as Movie,
+    role: Role.actor,
+    character: credit.character || null,
+  }));
 
-  await cachePerson(tmdbId);
-
-  const refetched = await prisma.person.findUnique({
-    where: { tmdbId },
-    include: {
-      movies: {
-        include: {
-          movie: {
-            include: {
-              genres: true,
-              collections: true,
-            },
-          },
-        },
-      },
-    },
-  });
-
-  if (!refetched) {
-    throw new Error('Person not found after caching');
-  }
+  const directedMovies = tmdbPerson.movie_credits.crew
+    .filter((credit) => credit.job === 'Director')
+    .map((credit) => ({
+      movie: {
+        id: 0,
+        tmdbId: credit.id,
+        title: credit.title,
+        overview: null,
+        releaseDate: credit.release_date,
+        posterPath: credit.poster_path,
+        backdropPath: null,
+        voteAverage: null,
+        voteCount: null,
+        runtime: null,
+        tagline: null,
+        genres: [],
+        people: [],
+        collections: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as Movie,
+      role: Role.director,
+      character: null,
+    }));
 
   return {
-    ...refetched,
-    movies: refetched.movies.map((pm) => ({
-      movie: { ...pm.movie, people: [] } as Movie,
-      role: pm.role as unknown as Role,
-      character: pm.character,
-    })),
+    ...person,
+    movies: [...actedMovies, ...directedMovies],
   };
 }
 

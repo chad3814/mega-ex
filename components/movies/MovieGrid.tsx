@@ -1,14 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MegaFileItem } from '@/lib/utils/mega-client';
+import { MegaFileItem } from '@/lib/utils/mega-navigation';
 import MovieCard from './MovieCard';
 
 interface MovieGridProps {
   movies: MegaFileItem[];
 }
 
-interface MovieWithTMDB extends MegaFileItem {
+interface MovieWithTMDB {
+  cleanTitle: string;
+  year: number | null;
   tmdbId?: number;
   posterPath?: string;
   title?: string;
@@ -40,7 +42,8 @@ export default function MovieGrid({ movies }: MovieGridProps) {
               if (data.results && data.results.length > 0) {
                 const firstResult = data.results[0];
                 return {
-                  ...movie,
+                  cleanTitle: movie.cleanTitle,
+                  year: movie.year,
                   tmdbId: firstResult.id,
                   posterPath: firstResult.poster_path,
                   title: firstResult.title,
@@ -52,7 +55,10 @@ export default function MovieGrid({ movies }: MovieGridProps) {
             console.error('Error fetching movie data:', error);
           }
 
-          return movie;
+          return {
+            cleanTitle: movie.cleanTitle,
+            year: movie.year,
+          };
         })
       );
 

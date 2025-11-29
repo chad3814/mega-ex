@@ -8,6 +8,7 @@ import { Movie } from '@/types/movie';
 import { PersonRole, Role } from '@/types/person';
 import { numberToDate } from '@/lib/utils/date';
 import { useRouter } from 'next/navigation';
+import Breadcrumb from '@/components/Breadcrumb';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,6 +80,15 @@ export default function MoviePage({ params }: MoviePageProps) {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
+      <div className="px-8 pt-8">
+        <Breadcrumb
+          items={[
+            { label: 'Movies', href: '/movies' },
+            { label: movie.title, href: `/movie/${movie.id}` },
+          ]}
+        />
+      </div>
+
       {movie.backdropPath && (
         <div className="relative h-96 w-full">
           <Image
@@ -224,7 +234,7 @@ export default function MoviePage({ params }: MoviePageProps) {
         )}
 
         {movie.collections && movie.collections.map((collection) => (
-          <div className="mb-12">
+          <div key={collection.id} className="mb-12">
             <h2 className="text-2xl font-bold mb-6">Collections</h2>
             <Link
               href={`/collection/${collection.tmdbId}`}

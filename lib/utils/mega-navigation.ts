@@ -68,3 +68,54 @@ export function isMegaDirectory(item: MegaItem): item is MegaDirectoryItem {
 export function isMegaFile(item: MegaItem): item is MegaFileItem {
   return !('type' in item);
 }
+
+export function getAllFilesRecursive(directory: File, pathSegments: string[] = []): MegaFileItem[] {
+  if (!directory.directory || !directory.children) {
+    return [];
+  }
+
+  const files: MegaFileItem[] = [];
+
+  for (const child of Object.values(directory.children)) {
+    const childFile = child as File;
+
+    if (childFile.directory) {
+      // Recursively get files from subdirectories
+      const subFiles = getAllFilesRecursive(childFile, [...pathSegments, childFile.name || '']);
+      files.push(...subFiles);
+    } else if (childFile.name && childFile.name.toLowerCase().endsWith('.mp4')) {
+      const pathString = pathSegments.join('/');
+      const parsed = parseFileInfo(childFile.name, pathString);
+      files.push({
+        ...parsed,
+        file: childFile,
+      });
+    }
+  }
+
+  return files;
+}
+
+export function getRecentlyAddedMovies(directory: File, limit: number = 20): MegaFileItem[] {
+  const allFiles = getAllFilesRecursive(directory);
+  // Treat 'unknown' as movies unless they have episode info
+  const movies = allFiles.filter(item =>
+    item.mediaType === 'movie' ||
+    (item.mediaType === 'unknown' && !item.episodeInfo)
+  );
+
+  // Sort by timestamp (most recent first) and limit
+  return movies
+    .sort((a, b) => (b.file.timestamp || 0) - (a.file.timestamp || 0))
+    .slice(0, limit);
+}
+
+export function getRecentlyAddedEpisodes(directory: File, limit: number = 20): MegaFileItem[] {
+  const allFiles = getAllFilesRecursive(directory);
+  const episodes = allFiles.filter(item => item.mediaType === 'tv');
+
+  // Sort by timestamp (most recent first) and limit
+  return episodes
+    .sort((a, b) => (b.file.timestamp || 0) - (a.file.timestamp || 0))
+    .slice(0, limit);
+}

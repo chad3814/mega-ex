@@ -2,14 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useMega } from '@/contexts/MegaContext';
-import { getDirectoryContents, isMegaFile, isMegaDirectory, MegaItem } from '@/lib/utils/mega-navigation';
-import MovieGrid from '@/components/movies/MovieGrid';
-import DirectoryGrid from '@/components/movies/DirectoryGrid';
+import { getRecentlyAddedMovies, getRecentlyAddedEpisodes, MegaFileItem } from '@/lib/utils/mega-navigation';
+import MovieCardWithData from '@/components/movies/MovieCardWithData';
+import EpisodeCardSimple from '@/components/episodes/EpisodeCardSimple';
+import HorizontalList from '@/components/HorizontalList';
 
 export default function Home() {
   const { shareUrl, setShareUrl, rootFile, isLoading: contextLoading, error: contextError } = useMega();
   const [urlInput, setUrlInput] = useState('');
-  const [items, setItems] = useState<MegaItem[]>([]);
+  const [recentMovies, setRecentMovies] = useState<MegaFileItem[]>([]);
+  const [recentEpisodes, setRecentEpisodes] = useState<MegaFileItem[]>([]);
 
   useEffect(() => {
     if (shareUrl) {
@@ -20,14 +22,18 @@ export default function Home() {
   useEffect(() => {
     if (rootFile && rootFile.directory) {
       try {
-        const contents = getDirectoryContents(rootFile);
-        setItems(contents);
+        const movies = getRecentlyAddedMovies(rootFile, 20);
+        const episodes = getRecentlyAddedEpisodes(rootFile, 20);
+        setRecentMovies(movies);
+        setRecentEpisodes(episodes);
       } catch (err) {
-        console.error('Error getting directory contents:', err);
-        setItems([]);
+        console.error('Error getting recent content:', err);
+        setRecentMovies([]);
+        setRecentEpisodes([]);
       }
     } else {
-      setItems([]);
+      setRecentMovies([]);
+      setRecentEpisodes([]);
     }
   }, [rootFile]);
 
@@ -38,13 +44,10 @@ export default function Home() {
     }
   };
 
-  const movies = items.filter(isMegaFile).filter(item => item.mediaType === 'movie');
-  const directories = items.filter(isMegaDirectory);
-
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-8">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-4xl font-bold mb-8">Mega.nz Movie Browser</h1>
+    <div className="p-8 overflow-hidden">
+      <div className="max-w-full">
+        <h1 className="text-4xl font-bold mb-8">Mega.nz Media Browser</h1>
 
         <form onSubmit={handleSubmit} className="mb-12">
           <div className="flex gap-4">
@@ -66,22 +69,24 @@ export default function Home() {
           {contextError && <p className="text-red-500 mt-2">{contextError}</p>}
         </form>
 
-        {directories.length > 0 && (
-          <div className="mb-12">
-            <h2 className="text-2xl font-bold mb-6">Directories</h2>
-            <DirectoryGrid directories={directories} />
-          </div>
+        {recentMovies.length > 0 && (
+          <HorizontalList title="Recently Added Movies" itemWidth={144}>
+            {recentMovies.map((movie, index) => (
+              <MovieCardWithData key={index} movie={movie} />
+            ))}
+          </HorizontalList>
         )}
 
-        {movies.length > 0 && (
-          <div>
-            <h2 className="text-2xl font-bold mb-6">Movies ({movies.length})</h2>
-            <MovieGrid movies={movies} />
-          </div>
+        {recentEpisodes.length > 0 && (
+          <HorizontalList title="Recently Added Episodes" itemWidth={240}>
+            {recentEpisodes.map((episode, index) => (
+              <EpisodeCardSimple key={index} episode={episode} />
+            ))}
+          </HorizontalList>
         )}
 
-        {!contextLoading && items.length === 0 && shareUrl && !contextError && (
-          <p className="text-gray-400 text-center">No movies found in this mega.nz share.</p>
+        {!contextLoading && recentMovies.length === 0 && recentEpisodes.length === 0 && shareUrl && !contextError && (
+          <p className="text-gray-400 text-center">No content found in this mega.nz share.</p>
         )}
       </div>
     </div>

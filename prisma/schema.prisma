@@ -39,6 +39,7 @@ model Person {
   deathday         String?
   profilePath      String?
   movies           PersonMovie[]
+  episodes         PersonEpisode[]
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 }
@@ -73,5 +74,75 @@ model Genre {
   tmdbId           Int              @unique
   name             String
   movies           Movie[]
+  shows            Show[]
   createdAt        DateTime         @default(now())
+}
+
+model Show {
+  id               Int              @id @default(autoincrement())
+  tmdbId           Int              @unique
+  name             String
+  overview         String?
+  firstAirDate     String?
+  posterPath       String?
+  backdropPath     String?
+  voteAverage      Float?
+  voteCount        Int?
+  genres           Genre[]
+  seasons          Season[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model Season {
+  id               Int              @id @default(autoincrement())
+  showId           Int
+  tmdbId           Int              @unique
+  seasonNumber     Int
+  name             String
+  overview         String?
+  posterPath       String?
+  airDate          String?
+  episodeCount     Int?
+  show             Show             @relation(fields: [showId], references: [id])
+  episodes         Episode[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@unique([showId, seasonNumber])
+}
+
+model Episode {
+  id               Int              @id @default(autoincrement())
+  seasonId         Int
+  tmdbId           Int              @unique
+  episodeNumber    Int
+  name             String?
+  overview         String?
+  stillPath        String?
+  airDate          String?
+  runtime          Int?
+  voteAverage      Float?
+  megaThumbnail    String?
+  megaFileKey      String?
+  megaPath         String?
+  season           Season           @relation(fields: [seasonId], references: [id])
+  people           PersonEpisode[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@unique([seasonId, episodeNumber])
+}
+
+model PersonEpisode {
+  id               Int              @id @default(autoincrement())
+  personId         Int
+  episodeId        Int
+  role             String
+  character        String?
+  person           Person           @relation(fields: [personId], references: [id])
+  episode          Episode          @relation(fields: [episodeId], references: [id])
+  createdAt        DateTime         @default(now())
+
+  @@unique([personId, episodeId, role])
 }
