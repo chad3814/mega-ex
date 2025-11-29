@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output          = "../generated/prisma"
+  engineType      = "client" // enable Prisma ORM without Rust
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Movie {
+  id               Int              @id @default(autoincrement())
+  tmdbId           Int              @unique
+  title            String
+  overview         String?
+  releaseDate      String?
+  posterPath       String?
+  backdropPath     String?
+  voteAverage      Float?
+  voteCount        Int?
+  runtime          Int?
+  tagline          String?
+  genres           Genre[]
+  people           PersonMovie[]
+  collections      Collection[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model Person {
+  id               Int              @id @default(autoincrement())
+  tmdbId           Int              @unique
+  name             String
+  biography        String?
+  birthday         String?
+  deathday         String?
+  profilePath      String?
+  movies           PersonMovie[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model PersonMovie {
+  id               Int              @id @default(autoincrement())
+  personId         Int
+  movieId          Int
+  role             String
+  character        String?
+  person           Person           @relation(fields: [personId], references: [id])
+  movie            Movie            @relation(fields: [movieId], references: [id])
+  createdAt        DateTime         @default(now())
+
+  @@unique([personId, movieId, role])
+}
+
+model Collection {
+  id               Int              @id @default(autoincrement())
+  tmdbId           Int              @unique
+  name             String
+  overview         String?
+  posterPath       String?
+  backdropPath     String?
+  movies           Movie[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model Genre {
+  id               Int              @id @default(autoincrement())
+  tmdbId           Int              @unique
+  name             String
+  movies           Movie[]
+  createdAt        DateTime         @default(now())
+}
