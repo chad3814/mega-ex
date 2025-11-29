@@ -68,7 +68,7 @@ export default function PersonPage({ params }: PersonPageProps) {
   }, [params]);
 
   useEffect(() => {
-    if (!id || !rootFile) return;
+    if (!id) return;
 
     async function fetchPerson() {
       const availableMovieIds: number[] = [];

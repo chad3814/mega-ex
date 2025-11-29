@@ -37,22 +37,26 @@ npm run dev
 ### Data Flow
 1. **Client-side mega.nz browsing**: megajs library runs entirely in browser for security
 2. **File parsing**: lib/utils/file-parser.ts extracts movie titles and years from filenames
-3. **TMDB integration**: lib/tmdb/client.ts fetches movie data, lib/tmdb/cache.ts manages SQLite caching
-4. **Database layer**: Prisma ORM with custom output path (generated/prisma) and BetterSqlite3 adapter
+3. **TMDB integration**: lib/tmdb/client.ts fetches movie/show data, lib/tmdb/cache.ts and lib/tmdb/tv-cache.ts manage database caching
+4. **Client-side caching**: contexts/MediaCacheContext.tsx provides IndexedDB caching for TMDB search results with background queue processing
+5. **Database layer**: Prisma ORM with custom output path (generated/prisma) and PostgreSQL via pg adapter
 
 ### Key Architecture Patterns
 
 **Prisma Custom Setup**
 - Client generated to `generated/prisma` (not default node_modules)
-- Uses BetterSqlite3 adapter for SQLite without Rust engine
+- Uses PostgreSQL with pg adapter (was SQLite with BetterSqlite3)
 - Custom import path: `import { PrismaClient } from 'db/client'`
-- Configuration in prisma.config.ts, database at prisma/dev.db
+- Configuration in prisma.config.ts with DATABASE_URL from .env
+- Connection pool managed in lib/prisma.ts for optimal performance
 
 **TMDB Caching Strategy**
-- All TMDB API calls go through lib/tmdb/cache.ts
-- Upsert pattern: check cache → fetch if missing → store in SQLite
-- Caches movies, persons, collections, and genres with relationships
-- Uses Prisma transactions for complex multi-entity caching
+- **Server-side**: lib/tmdb/cache.ts and lib/tmdb/tv-cache.ts cache in PostgreSQL database
+- **Client-side**: contexts/MediaCacheContext.tsx caches search results in IndexedDB with background queue
+- Upsert pattern: check cache → fetch if missing → store in database
+- Caches movies, shows, seasons, episodes, persons, collections, and genres with relationships
+- Client cache persists across sessions and prevents duplicate API calls
+- Background queue processes all files from mega.nz share automatically
 
 **File Parsing Intelligence** (lib/utils/file-parser.ts)
 - Year extraction: Finds last 4-digit number between 1900-current year
@@ -100,8 +104,18 @@ npm run dev
 ## Environment Variables
 
 Required in .env:
+- `DATABASE_URL`: PostgreSQL connection string (e.g., `postgresql://user:password@localhost:5432/mega_ex`)
 - `TMDB_API_KEY`: Get from https://www.themoviedb.org/settings/api
-- `DATABASE_URL`: SQLite file path (default: file:./dev.db)
+- `NEXT_PUBLIC_TMDB_IMAGE_BASE_URL`: TMDB image CDN (default: https://image.tmdb.org/t/p)
+- `NEXT_PUBLIC_BASE_URL`: Your app URL (default: http://localhost:3000)
+
+## Deployment Notes
+
+### Vercel Deployment
+- PostgreSQL database required (use Vercel Postgres, Supabase, or similar)
+- Set `DATABASE_URL` environment variable in Vercel dashboard
+- Run `npx prisma migrate deploy` in build command or post-deploy hook
+- Ensure `TMDB_API_KEY` is set in environment variables
 
 ## Testing Approach
 - No test suite currently exists
