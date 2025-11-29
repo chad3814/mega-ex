@@ -1,7 +1,6 @@
 import { PrismaClient } from 'db/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
-import config from '../prisma.config';
 
 const globalThisForPrisma = globalThis as typeof globalThis & {
   prisma?: PrismaClient;
@@ -10,7 +9,7 @@ const globalThisForPrisma = globalThis as typeof globalThis & {
 
 // Create PostgreSQL connection pool
 const pool = globalThisForPrisma.pgPool ?? new Pool({
-  connectionString: config?.datasource?.url as string || process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL,
 });
 
 if (process.env.NODE_ENV !== 'production') {

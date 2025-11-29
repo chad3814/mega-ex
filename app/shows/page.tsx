@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useMega } from '@/contexts/MegaContext';
 import { getAllFilesRecursive, MegaFileItem } from '@/lib/utils/mega-navigation';
-import { searchAndCacheShow } from '@/lib/tmdb/tv-cache';
 import ShowCard from '@/components/shows/ShowCard';
 import Breadcrumb from '@/components/Breadcrumb';
 import { Show } from '@/types/show';
@@ -34,8 +33,17 @@ export default function ShowsPage() {
           // Fetch show info from TMDB for unique shows
           const showPromises = Array.from(showMap.keys()).map(async (title) => {
             try {
-              const show = await searchAndCacheShow(title);
-              return show;
+              const response = await fetch('/api/tmdb/show/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title }),
+              });
+
+              if (response.ok) {
+                const show = await response.json();
+                return show;
+              }
+              return null;
             } catch (err) {
               console.error(`Failed to fetch show: ${title}`, err);
               return null;
