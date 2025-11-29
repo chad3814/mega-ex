@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Collection } from '@/types/movie';
 import { numberToDate } from '@/lib/utils/date';
+import Breadcrumb from '@/components/Breadcrumb';
 
 const TMDB_IMAGE_BASE = process.env.NEXT_PUBLIC_TMDB_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p';
 
@@ -68,6 +69,15 @@ export default function CollectionPage({ params }: CollectionPageProps) {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
+      <div className="px-8 pt-8 relative z-20">
+        <Breadcrumb
+          items={[
+            { label: 'Collections', href: '/collections' },
+            { label: collection.name, href: `/collection/${collection.id}` },
+          ]}
+        />
+      </div>
+
       {collection.backdropPath && (
         <div className="relative h-96 w-full">
           <Image
