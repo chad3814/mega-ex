@@ -80,7 +80,7 @@ export default function MoviePage({ params }: MoviePageProps) {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
-      <div className="px-8 pt-8">
+      <div className="px-8 pt-8 relative z-20">
         <Breadcrumb
           items={[
             { label: 'Movies', href: '/movies' },
@@ -102,7 +102,7 @@ export default function MoviePage({ params }: MoviePageProps) {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-8 -mt-64 relative z-10">
+      <div className={`max-w-7xl mx-auto px-8 ${movie.backdropPath ? '-mt-64 relative z-10' : 'mt-8'}`}>
         <div className="flex gap-8 mb-8">
           {movie.posterPath && (
             <div className="flex-shrink-0">
