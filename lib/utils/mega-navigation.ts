@@ -84,6 +84,13 @@ export function getAllFilesRecursive(directory: File, pathSegments: string[] = [
       const subFiles = getAllFilesRecursive(childFile, [...pathSegments, childFile.name || '']);
       files.push(...subFiles);
     } else if (childFile.name && childFile.name.toLowerCase().endsWith('.mp4')) {
+        childFile.link({}, (err, url) => {
+            if (err) {
+                console.error('Error generating link for', childFile.name, err);
+            } else {
+                console.log('Generated link for', childFile.name, url);
+            }
+        });
       const pathString = pathSegments.join('/');
       const parsed = parseFileInfo(childFile.name, pathString);
       files.push({

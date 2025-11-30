@@ -9,6 +9,7 @@ import { PersonRole, Role } from '@/types/person';
 import { numberToDate } from '@/lib/utils/date';
 import { useRouter } from 'next/navigation';
 import Breadcrumb from '@/components/Breadcrumb';
+import DownloadButton from '@/components/movies/DownloadButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -106,7 +107,7 @@ export default function MoviePage({ params }: MoviePageProps) {
         <div className="flex gap-8 mb-8">
           {movie.posterPath && (
             <div className="flex-shrink-0">
-              <div className="relative w-64 aspect-[2/3] rounded-lg overflow-hidden shadow-2xl">
+              <div className="relative w-64 aspect-[2/3] rounded-lg overflow-hidden shadow-2xl mb-4">
                 <Image
                   src={`${TMDB_IMAGE_BASE}/w500${movie.posterPath}`}
                   alt={movie.title}
@@ -114,6 +115,7 @@ export default function MoviePage({ params }: MoviePageProps) {
                   className="object-cover"
                 />
               </div>
+              <DownloadButton tmdbId={movie.tmdbId} title={movie.title} />
             </div>
           )}
 

@@ -24,6 +24,7 @@ interface MediaCacheContextType {
   getShowData: (cleanTitle: string) => TMDBShowResult | null;
   isMovieAvailable: (tmdbId: number) => boolean;
   getMovieFiles: (tmdbId: number) => string[];
+  getMegaFileByTmdbId: (tmdbId: number) => MegaFileItem | null;
   isProcessing: boolean;
   queueProgress: { current: number; total: number };
 }
@@ -41,6 +42,7 @@ export function MediaCacheProvider({ children }: { children: ReactNode }) {
   const { rootFile } = useMega();
   const [cache, setCache] = useState<Map<string, TMDBMovieResult | TMDBShowResult>>(new Map());
   const [tmdbIdToFiles, setTmdbIdToFiles] = useState<Map<number, string[]>>(new Map());
+  const [tmdbIdToMegaFile, setTmdbIdToMegaFile] = useState<Map<number, MegaFileItem>>(new Map());
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [processing, setProcessing] = useState(false);
   const [queueProgress, setQueueProgress] = useState({ current: 0, total: 0 });
@@ -63,6 +65,7 @@ export function MediaCacheProvider({ children }: { children: ReactNode }) {
       const newQueue: QueueItem[] = [];
       const newCache = new Map<string, TMDBMovieResult | TMDBShowResult>();
       const newMapping = new Map<number, string[]>();
+      const newMegaFileMap = new Map<number, MegaFileItem>();
 
       for (const file of allFiles) {
         if (file.mediaType === 'movie' || (file.mediaType === 'unknown' && !file.episodeInfo)) {
@@ -78,6 +81,11 @@ export function MediaCacheProvider({ children }: { children: ReactNode }) {
             const existing = newMapping.get(tmdbId) || [];
             existing.push(file.filename);
             newMapping.set(tmdbId, existing);
+
+            // Store first file reference for download links
+            if (!newMegaFileMap.has(tmdbId)) {
+              newMegaFileMap.set(tmdbId, file);
+            }
           } else {
             newQueue.push({
               type: 'movie',
@@ -108,6 +116,7 @@ export function MediaCacheProvider({ children }: { children: ReactNode }) {
 
       setCache(newCache);
       setTmdbIdToFiles(newMapping);
+      setTmdbIdToMegaFile(newMegaFileMap);
       setQueue(newQueue);
       setQueueProgress({ current: 0, total: newQueue.length });
     };
@@ -225,6 +234,10 @@ export function MediaCacheProvider({ children }: { children: ReactNode }) {
     return tmdbIdToFiles.get(tmdbId) || [];
   }, [tmdbIdToFiles]);
 
+  const getMegaFileByTmdbId = useCallback((tmdbId: number): MegaFileItem | null => {
+    return tmdbIdToMegaFile.get(tmdbId) || null;
+  }, [tmdbIdToMegaFile]);
+
   return (
     <MediaCacheContext.Provider
       value={{
@@ -232,6 +245,7 @@ export function MediaCacheProvider({ children }: { children: ReactNode }) {
         getShowData,
         isMovieAvailable,
         getMovieFiles,
+        getMegaFileByTmdbId,
         isProcessing: processing,
         queueProgress,
       }}

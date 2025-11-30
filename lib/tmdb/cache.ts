@@ -9,6 +9,33 @@ import type { TMDBMovie } from '@/types/tmdb';
 import { Person, Role } from '@/types/person';
 
 export async function cacheMovie(tmdbMovie: TMDBMovie): Promise<Movie> {
+  // Check if already exists first to avoid race conditions
+  const existing = await prisma.movie.findUnique({
+    where: { tmdbId: tmdbMovie.id },
+    include: {
+      genres: true,
+      people: {
+        include: {
+          person: true,
+        },
+      },
+      collections: true,
+    },
+  });
+
+  if (existing) {
+    return {
+      ...existing,
+      people: existing.people.map((pm) => ({
+        id: pm.id,
+        role: pm.role as unknown as Role,
+        character: pm.character,
+        person: pm.person,
+        createdAt: pm.createdAt,
+      })),
+    };
+  }
+
   const directors = tmdbMovie.credits.crew.filter(
     (person) => person.job === 'Director'
   );
