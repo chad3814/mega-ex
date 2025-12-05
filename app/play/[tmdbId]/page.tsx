@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useMediaCache } from '@/contexts/MediaCacheContext';
 import Breadcrumb from '@/components/Breadcrumb';
+import { isFastStartMP4 } from '@/lib/utils/mp4-parser';
 
 export default function VideoPlayerPage() {
   const params = useParams();
@@ -16,9 +17,10 @@ export default function VideoPlayerPage() {
   const sourceBufferRef = useRef<SourceBuffer | null>(null);
   const queueRef = useRef<Uint8Array[]>([]);
 
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [bufferProgress, setBufferProgress] = useState(0);
+  const [isBuffering, setIsBuffering] = useState(true);
+  const [isFastStart, setIsFastStart] = useState<boolean | null>(null);
 
   const megaFile = getMegaFileByTmdbId(tmdbId);
   const movieData = megaFile ? getMovieData(megaFile.cleanTitle, megaFile.year) : null;
@@ -26,7 +28,7 @@ export default function VideoPlayerPage() {
   useEffect(() => {
     if (!megaFile) {
       setError('Movie file not found in mega share');
-      setLoading(false);
+      setIsBuffering(false);
       return;
     }
 
@@ -47,7 +49,7 @@ export default function VideoPlayerPage() {
             let totalBytes = 0;
             const fileSize = megaFile.file.size || 0;
 
-            // Process queue when sourceBuffer is ready
+            // Auto-pumper: process queue when sourceBuffer is ready
             const processQueue = () => {
               if (sourceBuffer.updating || queueRef.current.length === 0) return;
 
@@ -62,7 +64,17 @@ export default function VideoPlayerPage() {
             // Start downloading from mega
             const stream = megaFile.file.download({});
 
+            let firstChunkReceived = false;
+
             stream.on('data', (chunk: Uint8Array) => {
+              // Check first chunk for fast-start
+              if (!firstChunkReceived && chunk.length > 0) {
+                firstChunkReceived = true;
+                const fastStart = isFastStartMP4(chunk);
+                setIsFastStart(fastStart);
+                console.log('MP4 Fast-start:', fastStart);
+              }
+
               queueRef.current.push(chunk);
               totalBytes += chunk.length;
 
@@ -71,10 +83,15 @@ export default function VideoPlayerPage() {
               }
 
               processQueue();
+
+              // Start playing after first few chunks
+              if (totalBytes > 1024 * 1024 && isBuffering) {
+                setIsBuffering(false);
+              }
             });
 
             stream.on('end', () => {
-              setLoading(false);
+              setIsBuffering(false);
               // Wait for queue to empty before ending
               const checkQueue = setInterval(() => {
                 if (queueRef.current.length === 0 && !sourceBuffer.updating) {
@@ -89,20 +106,20 @@ export default function VideoPlayerPage() {
             stream.on('error', (err: Error) => {
               console.error('Stream error:', err);
               setError('Failed to stream video');
-              setLoading(false);
+              setIsBuffering(false);
             });
 
           } catch (err) {
             console.error('SourceBuffer error:', err);
             setError('Failed to initialize video player');
-            setLoading(false);
+            setIsBuffering(false);
           }
         });
 
       } catch (err) {
         console.error('Player setup error:', err);
         setError('Failed to setup video player');
-        setLoading(false);
+        setIsBuffering(false);
       }
     };
 
@@ -114,15 +131,16 @@ export default function VideoPlayerPage() {
           mediaSourceRef.current.endOfStream();
         }
       }
-      if (videoRef.current) {
+      if (videoRef.current && videoRef.current.src) {
+        URL.revokeObjectURL(videoRef.current.src);
         videoRef.current.src = '';
       }
     };
-  }, [megaFile]);
+  }, [megaFile, isBuffering]);
 
   // Prevent navigation during buffering
   useEffect(() => {
-    if (!loading && bufferProgress < 100) {
+    if (isBuffering && bufferProgress > 0 && bufferProgress < 100) {
       const handleBeforeUnload = (e: BeforeUnloadEvent) => {
         e.preventDefault();
         e.returnValue = '';
@@ -134,7 +152,7 @@ export default function VideoPlayerPage() {
         window.removeEventListener('beforeunload', handleBeforeUnload);
       };
     }
-  }, [loading, bufferProgress]);
+  }, [isBuffering, bufferProgress]);
 
   if (error) {
     return (
@@ -178,20 +196,38 @@ export default function VideoPlayerPage() {
               autoPlay
             />
 
-            {loading && (
+            {isBuffering && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/80">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
                   <p className="text-lg">Buffering... {bufferProgress}%</p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    Fast-start videos will play immediately
+                  </p>
                 </div>
               </div>
             )}
           </div>
 
-          <div className="mt-4 text-sm text-gray-400">
-            <p>Streaming from mega.nz</p>
-            {bufferProgress < 100 && !loading && (
-              <p>Buffered: {bufferProgress}%</p>
+          <div className="mt-4 space-y-2">
+            <p className="text-sm text-gray-400">
+              Streaming from mega.nz • {bufferProgress}% buffered
+            </p>
+            {isFastStart === false && (
+              <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3">
+                <p className="text-sm text-yellow-200">
+                  ⚠️ This video is not web-optimized (moov atom at end).
+                  Playback may not start until file is fully buffered.
+                </p>
+                <p className="text-xs text-yellow-300 mt-1">
+                  To fix: <code className="bg-black/30 px-1 py-0.5 rounded">ffmpeg -i input.mp4 -movflags +faststart -c copy output.mp4</code>
+                </p>
+              </div>
+            )}
+            {isFastStart === true && (
+              <p className="text-sm text-green-400">
+                ✓ Web-optimized video - streaming playback enabled
+              </p>
             )}
           </div>
         </div>
